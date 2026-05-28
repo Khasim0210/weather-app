@@ -134,4 +134,116 @@ router.get('/:id', (req, res) => {
   }
 });
 
+// ---------- UPDATE ----------
+// PUT /api/queries/:id
+// Body (all fields optional): { location?, start_date?, end_date?, notes? }
+// If location or dates change, weather data is automatically re-fetched.
+router.put('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'id must be a positive integer' });
+    }
+
+    // 1. Make sure the record exists
+    const existing = db.prepare('SELECT * FROM weather_queries WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: `No weather query found with id=${id}` });
+    }
+
+    const { location, start_date, end_date, notes } = req.body;
+
+    // 2. Reject empty update requests
+    if (
+      location === undefined &&
+      start_date === undefined &&
+      end_date === undefined &&
+      notes === undefined
+    ) {
+      return res.status(400).json({
+        error: 'Provide at least one field to update: location, start_date, end_date, or notes',
+      });
+    }
+
+    // 3. Merge new values with existing ones
+    const newLocation = location !== undefined ? location : existing.location;
+    const newStart = start_date !== undefined ? start_date : existing.start_date;
+    const newEnd = end_date !== undefined ? end_date : existing.end_date;
+    const newNotes = notes !== undefined ? notes : existing.notes;
+
+    // 4. Re-validate date range (always — cheap and safer)
+    const dateCheck = validateDateRange(newStart, newEnd);
+    if (!dateCheck.valid) {
+      return res.status(400).json({ error: dateCheck.error });
+    }
+
+    // 5. Did location or dates change? If yes, refresh weather data.
+    const locationChanged = location !== undefined && location !== existing.location;
+    const datesChanged =
+      (start_date !== undefined && start_date !== existing.start_date) ||
+      (end_date !== undefined && end_date !== existing.end_date);
+
+    let resolvedName = existing.resolved_name;
+    let latitude = existing.latitude;
+    let longitude = existing.longitude;
+    let weatherJson = existing.weather_data;
+
+    if (locationChanged || datesChanged) {
+      // Re-validate the (possibly new) location
+      const resolved = await resolveLocation(newLocation);
+      if (!resolved) {
+        return res.status(404).json({
+          error: `Location "${newLocation}" could not be found. Please try a different spelling or a 5-digit US zip code.`,
+        });
+      }
+
+      // Fetch fresh weather for the (possibly new) coordinates
+      const weather = await fetchWeatherByCoords(resolved.lat, resolved.lon);
+
+      resolvedName = `${resolved.name}, ${resolved.country}`;
+      latitude = resolved.lat;
+      longitude = resolved.lon;
+      weatherJson = JSON.stringify(weather);
+    }
+
+    // 6. Save changes
+    db.prepare(`
+      UPDATE weather_queries
+      SET location = ?,
+          resolved_name = ?,
+          latitude = ?,
+          longitude = ?,
+          start_date = ?,
+          end_date = ?,
+          weather_data = ?,
+          notes = ?,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      newLocation,
+      resolvedName,
+      latitude,
+      longitude,
+      newStart,
+      newEnd,
+      weatherJson,
+      newNotes,
+      id
+    );
+
+    // 7. Return the updated row
+    const updated = db.prepare('SELECT * FROM weather_queries WHERE id = ?').get(id);
+    updated.weather_data = JSON.parse(updated.weather_data);
+
+    res.json({
+      message: 'Weather query updated successfully',
+      data: updated,
+      weather_refreshed: locationChanged || datesChanged,
+    });
+  } catch (err) {
+    console.error('UPDATE /api/queries/:id error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
 module.exports = router;
