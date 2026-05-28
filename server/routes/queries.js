@@ -246,4 +246,49 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// ---------- DELETE (single by ID) ----------
+// DELETE /api/queries/:id
+router.delete('/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'id must be a positive integer' });
+    }
+
+    // Confirm the record exists before deleting (so we can return a nice message)
+    const existing = db.prepare('SELECT id, location, resolved_name FROM weather_queries WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: `No weather query found with id=${id}` });
+    }
+
+    db.prepare('DELETE FROM weather_queries WHERE id = ?').run(id);
+
+    res.json({
+      message: `Weather query deleted successfully`,
+      deleted: existing,
+    });
+  } catch (err) {
+    console.error('DELETE /api/queries/:id error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+// ---------- DELETE (all) ----------
+// DELETE /api/queries
+// Useful for "Clear history" or full-reset functionality.
+router.delete('/', (req, res) => {
+  try {
+    const before = db.prepare('SELECT COUNT(*) AS count FROM weather_queries').get().count;
+    db.prepare('DELETE FROM weather_queries').run();
+
+    res.json({
+      message: 'All weather queries deleted successfully',
+      deleted_count: before,
+    });
+  } catch (err) {
+    console.error('DELETE /api/queries error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
 module.exports = router;
