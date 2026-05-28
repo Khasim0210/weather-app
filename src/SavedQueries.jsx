@@ -13,7 +13,12 @@ export default function SavedQueries() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Load existing queries when the component mounts
+  // Track which card is being edited, and the edit form values
+  const [editingId, setEditingId] = useState(null);
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
   useEffect(() => {
     loadQueries();
   }, []);
@@ -39,21 +44,73 @@ export default function SavedQueries() {
 
     setLoading(true);
     try {
-      await api.createQuery({
-        location,
-        start_date: startDate,
-        end_date: endDate,
-      });
+      await api.createQuery({ location, start_date: startDate, end_date: endDate });
       setSuccess(`Saved weather query for "${location}"!`);
       setLocation('');
       setStartDate('');
       setEndDate('');
-      loadQueries(); // refresh the list
+      loadQueries();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleDelete(id, name) {
+    if (!window.confirm(`Delete the saved query for "${name}"?`)) return;
+    setError('');
+    setSuccess('');
+    try {
+      await api.deleteQuery(id);
+      setSuccess(`Deleted query for "${name}".`);
+      loadQueries();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startEdit(q) {
+    setEditingId(q.id);
+    setEditStart(q.start_date);
+    setEditEnd(q.end_date);
+    setEditNotes(q.notes || '');
+    setError('');
+    setSuccess('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function handleUpdate(id) {
+    setError('');
+    setSuccess('');
+    try {
+      await api.updateQuery(id, {
+        start_date: editStart,
+        end_date: editEnd,
+        notes: editNotes,
+      });
+      setSuccess('Query updated successfully.');
+      setEditingId(null);
+      loadQueries();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // Helper: pull the current temp + condition out of the stored weather_data
+  function getCurrent(q) {
+    const cur = q.weather_data?.current;
+    if (!cur) return null;
+    return {
+      temp: Math.round(cur.main?.temp),
+      desc: cur.weather?.[0]?.description || '',
+      icon: cur.weather?.[0]?.icon,
+      humidity: cur.main?.humidity,
+      wind: cur.wind?.speed,
+    };
   }
 
   return (
@@ -87,16 +144,78 @@ export default function SavedQueries() {
       {error && <div className="msg error">{error}</div>}
       {success && <div className="msg success">{success}</div>}
 
-      {/* Basic list (we'll make this richer in the next steps) */}
-      <div className="query-count">{queries.length} saved {queries.length === 1 ? 'query' : 'queries'}</div>
-      <ul className="query-list">
-        {queries.map((q) => (
-          <li key={q.id} className="query-item">
-            <strong>{q.resolved_name || q.location}</strong>
-            <span> · {q.start_date} → {q.end_date}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="query-count">
+        {queries.length} saved {queries.length === 1 ? 'query' : 'queries'}
+      </div>
+
+      {/* Rich cards */}
+      <div className="query-cards">
+        {queries.map((q) => {
+          const cur = getCurrent(q);
+          const isEditing = editingId === q.id;
+          return (
+            <div key={q.id} className="query-card glass">
+              <div className="query-card-header">
+                <div>
+                  <h3>{q.resolved_name || q.location}</h3>
+                  <p className="query-dates">{q.start_date} → {q.end_date}</p>
+                </div>
+                {cur?.icon && (
+                  <img
+                    className="query-card-icon"
+                    src={`https://openweathermap.org/img/wn/${cur.icon}@2x.png`}
+                    alt={cur.desc}
+                  />
+                )}
+              </div>
+
+              {cur && (
+                <div className="query-card-weather">
+                  <span className="query-temp">{cur.temp}°C</span>
+                  <span className="query-desc">{cur.desc}</span>
+                  <span className="query-meta">💧 {cur.humidity}% · 💨 {cur.wind} m/s</span>
+                </div>
+              )}
+
+              {q.notes && !isEditing && <p className="query-notes">📝 {q.notes}</p>}
+
+              {/* Edit form (inline) */}
+              {isEditing ? (
+                <div className="query-edit">
+                  <label>
+                    Start date
+                    <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                  </label>
+                  <label>
+                    End date
+                    <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Notes (optional)"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                  />
+                  <div className="query-actions">
+                    <button className="btn-save" onClick={() => handleUpdate(q.id)}>Save</button>
+                    <button className="btn-cancel" onClick={cancelEdit}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="query-actions">
+                  <button className="btn-edit" onClick={() => startEdit(q)}>✏️ Edit</button>
+                  <button
+                    className="btn-delete"
+                    onClick={() => handleDelete(q.id, q.resolved_name || q.location)}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
