@@ -72,4 +72,66 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ---------- READ (list all) ----------
+// GET /api/queries
+// Optional query params:
+//   ?location=Dallas         (case-insensitive partial match)
+//   ?sort=newest|oldest      (default: newest)
+//   ?limit=20                (default: 100)
+router.get('/', (req, res) => {
+  try {
+    const { location, sort = 'newest', limit = 100 } = req.query;
+
+    let sql = 'SELECT * FROM weather_queries';
+    const params = [];
+
+    if (location) {
+      sql += ' WHERE location LIKE ? OR resolved_name LIKE ?';
+      params.push(`%${location}%`, `%${location}%`);
+    }
+
+    sql += sort === 'oldest' ? ' ORDER BY created_at ASC' : ' ORDER BY created_at DESC';
+    sql += ' LIMIT ?';
+    params.push(Number(limit) || 100);
+
+    const rows = db.prepare(sql).all(...params);
+
+    // Parse the weather_data JSON string back into an object for each row
+    const data = rows.map((row) => ({
+      ...row,
+      weather_data: JSON.parse(row.weather_data),
+    }));
+
+    res.json({
+      count: data.length,
+      data,
+    });
+  } catch (err) {
+    console.error('READ /api/queries error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+// ---------- READ (single by ID) ----------
+// GET /api/queries/:id
+router.get('/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'id must be a positive integer' });
+    }
+
+    const row = db.prepare('SELECT * FROM weather_queries WHERE id = ?').get(id);
+    if (!row) {
+      return res.status(404).json({ error: `No weather query found with id=${id}` });
+    }
+
+    row.weather_data = JSON.parse(row.weather_data);
+    res.json({ data: row });
+  } catch (err) {
+    console.error('READ /api/queries/:id error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
 module.exports = router;
