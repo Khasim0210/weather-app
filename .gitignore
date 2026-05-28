@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# SQLite database files
+*.db
+*.db-journal

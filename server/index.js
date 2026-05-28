@@ -5,6 +5,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const db = require('./db');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -26,6 +28,20 @@ app.get('/api/health', (req, res) => {
     message: 'Backend is healthy',
     timestamp: new Date().toISOString(),
   });
+});
+
+// DB sanity check: returns the count of stored weather queries
+app.get('/api/db-check', (req, res) => {
+  try {
+    const row = db.prepare('SELECT COUNT(*) AS count FROM weather_queries').get();
+    res.json({
+      status: 'ok',
+      table: 'weather_queries',
+      total_records: row.count,
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
 });
 
 // ---------- Start the server ----------
