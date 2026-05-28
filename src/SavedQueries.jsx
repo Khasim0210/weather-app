@@ -144,6 +144,14 @@ export default function SavedQueries() {
       {error && <div className="msg error">{error}</div>}
       {success && <div className="msg success">{success}</div>}
 
+      {/* Export toolbar */}
+      <div className="export-bar">
+        <span className="export-label">Export data:</span>
+        <a className="export-btn json" href={api.exportUrl('json')}>JSON</a>
+        <a className="export-btn csv" href={api.exportUrl('csv')}>CSV</a>
+        <a className="export-btn pdf" href={api.exportUrl('pdf')}>PDF</a>
+      </div>
+
       <div className="query-count">
         {queries.length} saved {queries.length === 1 ? 'query' : 'queries'}
       </div>
