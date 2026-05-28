@@ -2,6 +2,7 @@
 // Endpoints that export stored weather queries in various formats.
 
 const express = require('express');
+const PDFDocument = require('pdfkit');
 const db = require('../db');
 
 const router = express.Router();
@@ -117,5 +118,93 @@ router.get('/csv', (req, res) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
+
+// ---------- EXPORT: PDF ----------
+// GET /api/export/pdf
+router.get('/pdf', (req, res) => {
+  try {
+    const data = loadAllQueries();
+    const filename = buildFilename('pdf');
+
+    // Set headers BEFORE piping the PDF to the response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Create the PDF document and stream it to the client
+    const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+    doc.pipe(res);
+
+    // ---------- Title block ----------
+    doc.fontSize(24).fillColor('#1a73e8').text('Weather Queries Report', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(10).fillColor('#666')
+      .text(`Generated on ${new Date().toLocaleString()}`, { align: 'center' })
+      .text(`Total records: ${data.length}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // ---------- Each record as its own block ----------
+    if (data.length === 0) {
+      doc.fontSize(12).fillColor('#000')
+        .text('No weather queries saved yet.', { align: 'center' });
+    } else {
+      data.forEach((row, index) => {
+        const current = row.weather_data?.current || {};
+        const main = current.main || {};
+        const weather = (current.weather && current.weather[0]) || {};
+        const wind = current.wind || {};
+
+        // Record header
+        doc.fontSize(14).fillColor('#1a73e8')
+          .text(`${index + 1}. ${row.resolved_name || row.location}`, { underline: false });
+        doc.moveDown(0.3);
+
+        // Record details
+        doc.fontSize(10).fillColor('#000');
+        const lines = [
+          `Location query:      ${row.location}`,
+          `Coordinates:         ${row.latitude}, ${row.longitude}`,
+          `Date range:          ${row.start_date}  to  ${row.end_date}`,
+          `Current temperature: ${main.temp ?? 'N/A'} °C   (feels like ${main.feels_like ?? 'N/A'} °C)`,
+          `Condition:           ${weather.description ?? 'N/A'}`,
+          `Humidity:            ${main.humidity ?? 'N/A'}%`,
+          `Wind:                ${wind.speed ?? 'N/A'} m/s`,
+          `Notes:               ${row.notes || '—'}`,
+          `Created at:          ${row.created_at}`,
+        ];
+        lines.forEach((line) => doc.text(line));
+
+        doc.moveDown(0.7);
+        // Divider line
+        doc.strokeColor('#ddd').lineWidth(0.5)
+          .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.7);
+
+        // Page break if running low on space (rough estimate)
+        if (doc.y > 720 && index < data.length - 1) {
+          doc.addPage();
+        }
+      });
+    }
+
+    // ---------- Footer on every page ----------
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).fillColor('#999')
+        .text(
+          `Weather App  ·  Page ${i + 1} of ${range.count}  ·  Built by Khasim Shaik`,
+          50,
+          doc.page.height - 35,
+          { align: 'center', width: doc.page.width - 100 }
+        );
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('EXPORT /pdf error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
 
 module.exports = router;
