@@ -48,6 +48,9 @@ app.get('/api/db-check', (req, res) => {
 const queriesRouter = require('./routes/queries');
 app.use('/api/queries', queriesRouter);
 
+const exportRouter = require('./routes/export');
+app.use('/api/export', exportRouter);
+
 // ---------- Start the server ----------
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
