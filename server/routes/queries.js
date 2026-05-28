@@ -5,6 +5,7 @@ const express = require('express');
 const db = require('../db');
 const { validateDateRange } = require('../utils/validators');
 const { resolveLocation, fetchWeatherByCoords } = require('../services/weatherService');
+const { searchVideosForLocation } = require('../services/youtubeService');
 
 const router = express.Router();
 
@@ -287,6 +288,36 @@ router.delete('/', (req, res) => {
     });
   } catch (err) {
     console.error('DELETE /api/queries error:', err.message);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+// ---------- YouTube videos for a saved query ----------
+// GET /api/queries/:id/videos
+router.get('/:id/videos', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'id must be a positive integer' });
+    }
+
+    const row = db.prepare('SELECT id, resolved_name, location FROM weather_queries WHERE id = ?').get(id);
+    if (!row) {
+      return res.status(404).json({ error: `No weather query found with id=${id}` });
+    }
+
+    // Prefer the resolved (canonical) name for better search results
+    const locationName = row.resolved_name || row.location;
+    const videos = await searchVideosForLocation(locationName, 5);
+
+    res.json({
+      query_id: id,
+      location: locationName,
+      count: videos.length,
+      videos,
+    });
+  } catch (err) {
+    console.error('GET /api/queries/:id/videos error:', err.message);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
