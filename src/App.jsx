@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import './App.css'
+import SavedQueries from './SavedQueries'
 
 function App() {
+  const [view, setView] = useState('weather')   // 'weather' or 'saved'
   const [city, setCity] = useState('')
   const [weather, setWeather] = useState(null)
   const [forecast, setForecast] = useState(null)
@@ -120,107 +122,131 @@ function App() {
           <p className="subtitle">Discover weather anywhere in the world</p>
         </header>
 
-        <div className="search-section">
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Search city, zip code, or landmark..."
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSearch()
-              }}
-            />
-            <button className="btn-primary" onClick={handleSearch} disabled={loading}>
-              {loading ? '⏳' : '🔍'} Search
-            </button>
-          </div>
-          <button className="btn-location" onClick={handleUseLocation} disabled={loading}>
-            📍 Use My Current Location
+        {/* Tab navigation */}
+        <div className="tab-bar">
+          <button
+            className={`tab ${view === 'weather' ? 'active' : ''}`}
+            onClick={() => setView('weather')}
+          >
+            Current Weather
+          </button>
+          <button
+            className={`tab ${view === 'saved' ? 'active' : ''}`}
+            onClick={() => setView('saved')}
+          >
+            Saved Queries
           </button>
         </div>
 
-        {error && (
-          <div className="error-banner">
-            <span className="error-icon">⚠️</span>
-            <p>{error}</p>
-          </div>
-        )}
+        {/* Saved Queries view (backend-powered) */}
+        {view === 'saved' && <SavedQueries />}
 
-        {loading && !weather && (
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Fetching weather data...</p>
-          </div>
-        )}
-
-        {weather && (
-          <div className="weather-card glass">
-            <div className="weather-header">
-              <div>
-                <h2>{weather.name}, {weather.sys?.country}</h2>
-                <p className="weather-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        {/* Weather view */}
+        {view === 'weather' && (
+          <>
+            <div className="search-section">
+              <div className="search-bar">
+                <input
+                  type="text"
+                  placeholder="Search city, zip code, or landmark..."
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearch()
+                  }}
+                />
+                <button className="btn-primary" onClick={handleSearch} disabled={loading}>
+                  {loading ? '⏳' : '🔍'} Search
+                </button>
               </div>
-              <img
-                className="weather-icon-main"
-                src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@4x.png`}
-                alt={weather.weather[0].description}
-              />
+              <button className="btn-location" onClick={handleUseLocation} disabled={loading}>
+                📍 Use My Current Location
+              </button>
             </div>
 
-            <div className="temp-section">
-              <h1 className="big-temp">{Math.round(weather.main.temp)}°</h1>
-              <p className="condition">{weather.weather[0].description}</p>
-              <p className="feels-like">Feels like {Math.round(weather.main.feels_like)}°C</p>
-            </div>
+            {error && (
+              <div className="error-banner">
+                <span className="error-icon">⚠️</span>
+                <p>{error}</p>
+              </div>
+            )}
 
-            <div className="details-grid">
-              <div className="detail-card">
-                <span className="detail-icon">💧</span>
-                <span className="detail-label">Humidity</span>
-                <span className="detail-value">{weather.main.humidity}%</span>
+            {loading && !weather && (
+              <div className="loading">
+                <div className="spinner"></div>
+                <p>Fetching weather data...</p>
               </div>
-              <div className="detail-card">
-                <span className="detail-icon">💨</span>
-                <span className="detail-label">Wind</span>
-                <span className="detail-value">{weather.wind.speed} m/s</span>
-              </div>
-              <div className="detail-card">
-                <span className="detail-icon">🌡️</span>
-                <span className="detail-label">Pressure</span>
-                <span className="detail-value">{weather.main.pressure} hPa</span>
-              </div>
-              <div className="detail-card">
-                <span className="detail-icon">👁️</span>
-                <span className="detail-label">Visibility</span>
-                <span className="detail-value">{(weather.visibility / 1000).toFixed(1)} km</span>
-              </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {forecast && forecast.length > 0 && (
-          <div className="forecast-section">
-            <h3>📅 5-Day Forecast</h3>
-            <div className="forecast-list">
-              {forecast.map((day) => (
-                <div key={day.dt} className="forecast-card glass">
-                  <p className="forecast-day">
-                    {new Date(day.dt_txt).toLocaleDateString(undefined, { weekday: 'short' })}
-                  </p>
-                  <p className="forecast-date">
-                    {new Date(day.dt_txt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </p>
+            {weather && (
+              <div className="weather-card glass">
+                <div className="weather-header">
+                  <div>
+                    <h2>{weather.name}, {weather.sys?.country}</h2>
+                    <p className="weather-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                  </div>
                   <img
-                    src={`https://openweathermap.org/img/wn/${day.weather[0].icon}@2x.png`}
-                    alt={day.weather[0].description}
+                    className="weather-icon-main"
+                    src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@4x.png`}
+                    alt={weather.weather[0].description}
                   />
-                  <p className="forecast-temp">{Math.round(day.main.temp)}°C</p>
-                  <p className="forecast-desc">{day.weather[0].description}</p>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                <div className="temp-section">
+                  <h1 className="big-temp">{Math.round(weather.main.temp)}°</h1>
+                  <p className="condition">{weather.weather[0].description}</p>
+                  <p className="feels-like">Feels like {Math.round(weather.main.feels_like)}°C</p>
+                </div>
+
+                <div className="details-grid">
+                  <div className="detail-card">
+                    <span className="detail-icon">💧</span>
+                    <span className="detail-label">Humidity</span>
+                    <span className="detail-value">{weather.main.humidity}%</span>
+                  </div>
+                  <div className="detail-card">
+                    <span className="detail-icon">💨</span>
+                    <span className="detail-label">Wind</span>
+                    <span className="detail-value">{weather.wind.speed} m/s</span>
+                  </div>
+                  <div className="detail-card">
+                    <span className="detail-icon">🌡️</span>
+                    <span className="detail-label">Pressure</span>
+                    <span className="detail-value">{weather.main.pressure} hPa</span>
+                  </div>
+                  <div className="detail-card">
+                    <span className="detail-icon">👁️</span>
+                    <span className="detail-label">Visibility</span>
+                    <span className="detail-value">{(weather.visibility / 1000).toFixed(1)} km</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {forecast && forecast.length > 0 && (
+              <div className="forecast-section">
+                <h3>📅 5-Day Forecast</h3>
+                <div className="forecast-list">
+                  {forecast.map((day) => (
+                    <div key={day.dt} className="forecast-card glass">
+                      <p className="forecast-day">
+                        {new Date(day.dt_txt).toLocaleDateString(undefined, { weekday: 'short' })}
+                      </p>
+                      <p className="forecast-date">
+                        {new Date(day.dt_txt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </p>
+                      <img
+                        src={`https://openweathermap.org/img/wn/${day.weather[0].icon}@2x.png`}
+                        alt={day.weather[0].description}
+                      />
+                      <p className="forecast-temp">{Math.round(day.main.temp)}°C</p>
+                      <p className="forecast-desc">{day.weather[0].description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <footer className="footer">
