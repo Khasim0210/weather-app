@@ -250,7 +250,26 @@ function App() {
         )}
 
         <footer className="footer">
-          <p>Built by Khasim Shaik · Powered by OpenWeatherMap</p>
+          <p>Built by <strong>Khasim Shaik</strong> · Powered by OpenWeatherMap & YouTube Data API</p>
+          <details className="pm-info">
+            <summary>About PM Accelerator</summary>
+            <p>
+              The <strong>Product Manager Accelerator Program</strong> is designed to support PM
+              professionals through every stage of their careers. From students looking for entry-level
+              jobs to Directors looking to take on a leadership role, the program has helped hundreds
+              of students fulfill their career aspirations. PMA provides career coaching, hands-on
+              projects, and a supportive community to help PMs land roles at top tech companies.
+            </p>
+            <p>
+              
+                href="https://www.linkedin.com/school/pmaccelerator/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Visit PM Accelerator on LinkedIn →
+              </a>
+            </p>
+          </details>
         </footer>
       </div>
     </div>

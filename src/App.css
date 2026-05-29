@@ -534,3 +534,30 @@ button:disabled {
   overflow: hidden;
 }
 .video-channel { font-size: 0.72rem; opacity: 0.7; margin: 0; }
+
+/* ---------- PM Accelerator info ---------- */
+.pm-info {
+  margin-top: 0.75rem;
+  background: rgba(255,255,255,0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.pm-info summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+.pm-info p {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin: 0.5rem 0;
+  text-align: left;
+}
+.pm-info a {
+  color: #fff;
+  text-decoration: underline;
+}
