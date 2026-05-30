@@ -261,12 +261,12 @@ function App() {
               projects, and a supportive community to help PMs land roles at top tech companies.
             </p>
             <p>
-              
-                href="https://www.linkedin.com/school/pmaccelerator/"
+              <a
+                href="https://www.linkedin.com/company/pm-accelerator/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Visit PM Accelerator on LinkedIn →
+                Visit PM Accelerator on LinkedIn
               </a>
             </p>
           </details>
